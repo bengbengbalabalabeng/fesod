@@ -19,9 +19,11 @@
 
 package org.apache.fesod.excel.metadata;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.fesod.excel.converters.Converter;
 import org.apache.fesod.excel.enums.CacheLocationEnum;
 import org.apache.fesod.excel.util.ListUtils;
@@ -39,8 +41,21 @@ public abstract class AbstractParameterBuilder<T extends AbstractParameterBuilde
      * @return
      */
     public T head(List<List<String>> head) {
-        parameter().setHead(head);
+        parameter().setHead(toMutableListIfNecessary(head));
         return self();
+    }
+
+    /**
+     * Ensures and returns a fully mutable deep copy of head list.
+     *
+     * @param head head The source list to create a mutable copy from.
+     * @return A new, fully mutable deep copy, or the original list if the input is null or empty.
+     */
+    private List<List<String>> toMutableListIfNecessary(List<List<String>> head) {
+        if (null == head || head.isEmpty()) {
+            return head;
+        }
+        return head.stream().map(ArrayList::new).collect(Collectors.toList());
     }
 
     /**
