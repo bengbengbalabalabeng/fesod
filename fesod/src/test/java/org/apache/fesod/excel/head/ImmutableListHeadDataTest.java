@@ -21,11 +21,17 @@ package org.apache.fesod.excel.head;
 
 import java.io.File;
 import java.text.ParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.apache.fesod.excel.FastExcel;
 import org.apache.fesod.excel.util.DateUtils;
 import org.apache.fesod.excel.util.TestFileUtil;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 public class ImmutableListHeadDataTest {
@@ -72,23 +78,24 @@ public class ImmutableListHeadDataTest {
 
     private List<List<String>> head() {
         List<List<String>> list = new ArrayList<List<String>>();
-        List<String> head0 = Arrays.asList("字符串");
+        List<String> head0 = Arrays.asList("stringTitle");
         List<String> head1 = new ArrayList<String>();
-        head1.add("数字");
+        head1.add("numberTitle1");
+        head1.add("numberTitle2");
 
         list.add(head0);
         list.add(Collections.unmodifiableList(head1));
-        list.add(Collections.singletonList("日期"));
+        list.add(Collections.singletonList("datetimeTitle"));
         return list;
     }
 
     private List<List<Object>> data() throws ParseException {
         List<List<Object>> list = new ArrayList<List<Object>>();
         List<Object> data0 = new ArrayList<Object>();
-        data0.add("字符串0");
+        data0.add("stringData");
         data0.add(1);
         data0.add(DateUtils.parseDate("2025-10-31 01:01:01"));
-        data0.add("额外数据");
+        data0.add("extraData");
         list.add(data0);
         return list;
     }

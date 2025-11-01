@@ -56,9 +56,9 @@ public class ImmutableListHeadDataListener implements ReadListener<Map<Integer, 
 
         Assertions.assertEquals(1, list.size());
         Map<Integer, String> data = list.get(0);
-        Assertions.assertEquals("字符串0", data.get(0));
+        Assertions.assertEquals("stringData", data.get(0));
         Assertions.assertEquals("1", data.get(1));
         Assertions.assertEquals("2025-10-31 01:01:01", data.get(2));
-        Assertions.assertEquals("额外数据", data.get(3));
+        Assertions.assertEquals("extraData", data.get(3));
     }
 }
