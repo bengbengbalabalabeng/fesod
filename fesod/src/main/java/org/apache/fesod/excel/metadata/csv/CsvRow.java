@@ -105,10 +105,10 @@ public class CsvRow implements Row {
 
     @Override
     public Cell getCell(int cellnum) {
-        if (cellnum >= cellList.size()) {
+        if (cellnum < 0 || cellnum >= cellList.size()) {
             return null;
         }
-        return cellList.get(cellnum - 1);
+        return cellList.get(cellnum);
     }
 
     @Override
