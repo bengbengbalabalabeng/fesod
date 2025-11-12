@@ -46,16 +46,20 @@ public abstract class AbstractParameterBuilder<T extends AbstractParameterBuilde
     }
 
     /**
-     * Ensures and returns a fully mutable deep copy of head list.
+     * Ensures and returns a mutable head list.
      *
-     * @param head head The source list to create a mutable copy from.
-     * @return A new, fully mutable deep copy, or the original list if the input is null or empty.
+     * @param head The source list to create a mutable from.
+     * @return A new mutable list, or the original list if the input is null or empty.
      */
     private List<List<String>> toMutableListIfNecessary(List<List<String>> head) {
         if (null == head || head.isEmpty()) {
             return head;
         }
-        return head.stream().map(ArrayList::new).collect(Collectors.toList());
+        List<List<String>> result = new ArrayList<>();
+        for (List<String> headColumn : head) {
+            result.add(new ArrayList<>(headColumn));
+        }
+        return result;
     }
 
     /**
