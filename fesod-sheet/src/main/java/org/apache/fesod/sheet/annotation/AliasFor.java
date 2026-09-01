@@ -17,36 +17,36 @@
  * under the License.
  */
 
-/*
- * This file is part of the Apache Fesod (Incubating) project, which was derived from Alibaba EasyExcel.
- *
- * Copyright (C) 2018-2024 Alibaba Group Holding Ltd.
- */
+package org.apache.fesod.sheet.annotation;
 
-package org.apache.fesod.sheet.annotation.write.style;
-
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.Annotation;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 /**
- * Set the width of the table
- *
- *
+ * A value object representing a declarative attribute aliasing instruction.
  */
-@Target({ElementType.FIELD, ElementType.TYPE, ElementType.ANNOTATION_TYPE})
-@Retention(RetentionPolicy.RUNTIME)
-@Inherited
-public @interface ColumnWidth {
+@AllArgsConstructor
+@Getter
+class AliasFor {
 
     /**
-     * Column width
-     * <p>
-     * -1 means the default column width is used
-     *
-     * @return Column width
+     * The source annotation that declares the alias.
      */
-    int value() default -1;
+    private final Class<? extends Annotation> marked;
+
+    /**
+     * The target meta-annotation being aliased.
+     */
+    private final Class<? extends Annotation> target;
+
+    /**
+     * The name of the attribute in the source annotation.
+     */
+    private final String customAttribute;
+
+    /**
+     * The name of the attribute in the target annotation to be overridden.
+     */
+    private final String attribute;
 }
