@@ -104,6 +104,12 @@ class AnnotationMetadataResolver {
 
                     AttributeMethods targetAttrMethods = markedAnnMap.get(aliasFor.annotation());
                     if (targetAttrMethods == null) {
+                        if (!isMetaMarked(ann)) {
+                            throw new IllegalStateException(String.format(
+                                    "The custom-annotation '%s' declares @FesodMarked.AliasFor but is not annotated with @FesodMarked",
+                                    ann.annotationType().getName()));
+                        }
+
                         throw new IllegalStateException(String.format(
                                 "The alias annotation '%s' is not marked on the custom-annotation '%s'",
                                 aliasFor.annotation().getName(),
