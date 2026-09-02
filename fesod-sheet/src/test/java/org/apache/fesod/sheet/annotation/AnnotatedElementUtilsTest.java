@@ -293,7 +293,9 @@ class AnnotatedElementUtilsTest {
         Assertions.assertEquals(
                 merged, AnnotatedElementUtils.getMergedAnnotation(field("proxySource"), ExcelProperty.class));
         Assertions.assertEquals(merged, field("proxySource").getAnnotation(ExcelProperty.class));
-        Assertions.assertEquals(merged.hashCode(), merged.hashCode());
+        // equal objects must hash equally: synthesized hashCode follows the JLS annotation formula
+        Assertions.assertEquals(
+                field("proxySource").getAnnotation(ExcelProperty.class).hashCode(), merged.hashCode());
         Assertions.assertFalse(merged.equals(null));
         Assertions.assertTrue(merged.toString().contains("proxy"));
     }

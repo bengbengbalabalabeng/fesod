@@ -23,7 +23,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -154,48 +153,5 @@ public class AnnotationAttributes {
 
     public Map<String, Object> asImmutableMap() {
         return Collections.unmodifiableMap(attributes);
-    }
-
-    @Override
-    public String toString() {
-        Iterator<Map.Entry<String, Object>> i = attributes.entrySet().iterator();
-        if (!i.hasNext()) return "@" + annotationName + "()";
-
-        StringBuilder sb =
-                new StringBuilder().append('@').append(annotationName).append('(');
-
-        for (; ; ) {
-            Map.Entry<String, Object> e = i.next();
-            String key = e.getKey();
-            Object value = e.getValue();
-            sb.append(key);
-            sb.append('=');
-            sb.append(toString(value));
-            if (!i.hasNext()) return sb.append(')').toString();
-            sb.append(',').append(' ');
-        }
-    }
-
-    private String toString(Object value) {
-        Class<?> type = value.getClass();
-        if (type.isArray()) {
-            StringBuilder builder = new StringBuilder("{");
-            int arrayLength = Array.getLength(value);
-            for (int i = 0; i < arrayLength; i++) {
-                if (i > 0) {
-                    builder.append(", ");
-                }
-                builder.append(toString(Array.get(value, i)));
-            }
-            builder.append('}');
-            return builder.toString();
-        }
-        if (value instanceof Enum<?>) {
-            return ((Enum<?>) value).name();
-        }
-        if (type == Class.class) {
-            return ClassUtils.getCanonicalName((Class<?>) value) + ".class";
-        }
-        return String.valueOf(value);
     }
 }
