@@ -129,7 +129,7 @@ abstract class HierarchicalAnnotationScanner {
                 continue;
             }
             if ((marked.getDistance() + 1) <= target.getDistance()) {
-                target.put(alias.getAttribute(), marked.get(alias.getCustomAttribute()));
+                target.put(alias.getAttribute(), marked.getAttribute(alias.getCustomAttribute()));
                 target.markAsNonDefault(alias.getAttribute());
             }
         }

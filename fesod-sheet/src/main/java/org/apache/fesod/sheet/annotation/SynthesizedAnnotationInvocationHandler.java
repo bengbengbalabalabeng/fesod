@@ -74,7 +74,7 @@ class SynthesizedAnnotationInvocationHandler implements InvocationHandler {
             }
 
             AttributeMethods attributeMethods = AttributeMethods.from(this.type);
-            for (Map.Entry<String, Object> entry : attributes.entrySet()) {
+            for (Map.Entry<String, Object> entry : attributes.asImmutableMap().entrySet()) {
                 try {
                     Method m = attributeMethods.getMethod(entry.getKey());
                     if (!Objects.deepEquals(entry.getValue(), m.invoke(other))) {

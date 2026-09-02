@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -36,27 +37,34 @@ import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.Validate;
 
 /**
- * Implement key-value pairs of annotation attributes based on {@link LinkedHashMap}.
+ * Resolved key-value pairs attributes for an annotation.
+ * Provides type-safe lookup of annotation attributes.
  */
-@Getter
-@EqualsAndHashCode(callSuper = true)
-public class AnnotationAttributes extends LinkedHashMap<String, Object> {
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+public class AnnotationAttributes {
 
+    @Getter
+    @EqualsAndHashCode.Include
     private final Class<? extends Annotation> annotationType;
+
+    @Getter
     private final String annotationName;
+
+    @EqualsAndHashCode.Include
+    private final Map<String, Object> attributes;
+
     private final Set<String> defaultValueAttrNames;
 
-    @Setter
+    @Getter(AccessLevel.PACKAGE)
+    @Setter(AccessLevel.PACKAGE)
     private int distance;
 
-    public AnnotationAttributes(
+    AnnotationAttributes(
             Class<? extends Annotation> annotationType, Map<String, Object> attrs, Set<String> defaultValueAttrNames) {
-        super(attrs);
         this.annotationType = annotationType;
         this.annotationName = annotationType.getName();
-        this.defaultValueAttrNames = CollectionUtils.isNotEmpty(defaultValueAttrNames)
-                ? new HashSet<>(defaultValueAttrNames)
-                : Collections.emptySet();
+        this.attributes = new LinkedHashMap<>(attrs);
+        this.defaultValueAttrNames = new HashSet<>(defaultValueAttrNames);
         this.distance = 0;
     }
 
@@ -64,23 +72,23 @@ public class AnnotationAttributes extends LinkedHashMap<String, Object> {
         return this.annotationType.equals(annotationType);
     }
 
-    public boolean isDefaultValue(String attributeName) {
+    boolean isDefaultValue(String attributeName) {
         return defaultValueAttrNames.contains(attributeName);
     }
 
-    public void markAsNonDefault(String attributeName) {
+    void markAsNonDefault(String attributeName) {
         if (CollectionUtils.isNotEmpty(defaultValueAttrNames)) {
             defaultValueAttrNames.remove(attributeName);
         }
     }
 
-    public void merge(AnnotationAttributes other) {
+    void merge(AnnotationAttributes other) {
         if (other == null) {
             return;
         }
 
         if (distance < other.getDistance()) {
-            for (Map.Entry<String, Object> entry : other.entrySet()) {
+            for (Map.Entry<String, Object> entry : other.attributes.entrySet()) {
                 String attrName = entry.getKey();
 
                 if (isDefaultValue(attrName) && !other.isDefaultValue(attrName)) {
@@ -90,7 +98,7 @@ public class AnnotationAttributes extends LinkedHashMap<String, Object> {
             }
         } else if (distance > other.getDistance()) {
             distance = other.getDistance();
-            for (Map.Entry<String, Object> entry : other.entrySet()) {
+            for (Map.Entry<String, Object> entry : other.attributes.entrySet()) {
                 String attrName = entry.getKey();
 
                 if (!other.isDefaultValue(attrName)) {
@@ -101,9 +109,17 @@ public class AnnotationAttributes extends LinkedHashMap<String, Object> {
         }
     }
 
+    void put(String attrName, Object value) {
+        attributes.put(attrName, value);
+    }
+
+    public Object getAttribute(String attributeName) {
+        return attributes.get(attributeName);
+    }
+
     @SuppressWarnings("unchecked")
-    public <T> T getAttribute(String attrName, Class<T> type) {
-        Object result = get(attrName);
+    public <T> T getAttribute(String attributeName, Class<T> type) {
+        Object result = getAttribute(attributeName);
         if (Objects.isNull(result)) {
             return null;
         }
@@ -120,25 +136,29 @@ public class AnnotationAttributes extends LinkedHashMap<String, Object> {
         if (!wrapped.isInstance(result)) {
             throw new IllegalArgumentException(String.format(
                     "Attribute '%s' is of type %s, but %s was expected for annotation [%s]",
-                    attrName, result.getClass().getSimpleName(), type.getSimpleName(), annotationName));
+                    attributeName, result.getClass().getSimpleName(), type.getSimpleName(), annotationName));
         }
 
         return (T) result;
     }
 
-    public <T> T getRequiredAttribute(String attrName, Class<T> type) {
-        Validate.notBlank(attrName, "attributeName must not be null or blank");
-        T result = getAttribute(attrName, type);
+    public <T> T getRequiredAttribute(String attributeName, Class<T> type) {
+        Validate.notBlank(attributeName, "attributeName must not be null or blank");
+        T result = getAttribute(attributeName, type);
         if (Objects.isNull(result)) {
             throw new IllegalArgumentException(
-                    String.format("Attribute '%s' not found for annotation '%s'", attrName, annotationName));
+                    String.format("Attribute '%s' not found for annotation '%s'", attributeName, annotationName));
         }
         return result;
     }
 
+    public Map<String, Object> asImmutableMap() {
+        return Collections.unmodifiableMap(attributes);
+    }
+
     @Override
     public String toString() {
-        Iterator<Map.Entry<String, Object>> i = entrySet().iterator();
+        Iterator<Map.Entry<String, Object>> i = attributes.entrySet().iterator();
         if (!i.hasNext()) return "@" + annotationName + "()";
 
         StringBuilder sb =

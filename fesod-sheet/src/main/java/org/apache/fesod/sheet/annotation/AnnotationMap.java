@@ -40,7 +40,7 @@ public class AnnotationMap {
 
     private final Map<Class<? extends Annotation>, AnnotationAttributes> annotations;
 
-    public AnnotationMap(Map<Class<? extends Annotation>, AnnotationAttributes> annotations) {
+    AnnotationMap(Map<Class<? extends Annotation>, AnnotationAttributes> annotations) {
         this.annotations = annotations;
     }
 
@@ -75,11 +75,11 @@ public class AnnotationMap {
                 new SynthesizedAnnotationInvocationHandler(annotationType, attributes));
     }
 
-    public static Builder builder() {
+    static Builder builder() {
         return new Builder();
     }
 
-    public static class Builder {
+    static class Builder {
         private final Map<Class<? extends Annotation>, AnnotationAttributes> ann;
 
         public Builder() {
