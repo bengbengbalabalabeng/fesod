@@ -42,18 +42,34 @@ import org.apache.commons.lang3.Validate;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class AnnotationAttributes {
 
+    /**
+     * The type of the annotation, represented by this {@code AnnotationAttributes}.
+     */
     @Getter
     @EqualsAndHashCode.Include
     private final Class<? extends Annotation> annotationType;
 
+    /**
+     * The class name of the annotation type.
+     */
     @Getter
     private final String annotationName;
 
+    /**
+     * The key-value attribute pairs declared on the annotation.
+     */
     @EqualsAndHashCode.Include
     private final Map<String, Object> attributes;
 
+    /**
+     * Attribute names whose values match their declared defaults.
+     */
     private final Set<String> defaultValueAttrNames;
 
+    /**
+     * The distance of this annotation from the root annotated element.
+     * <p> A value of {@code 0} indicates that the annotation is directly declared on the element.
+     */
     @Getter(AccessLevel.PACKAGE)
     @Setter(AccessLevel.PACKAGE)
     private int distance;
@@ -112,10 +128,24 @@ public class AnnotationAttributes {
         attributes.put(attrName, value);
     }
 
+    /**
+     * Get an attribute value from the annotation.
+     *
+     * @param attributeName the attribute name
+     * @return the attribute value or {@code null} if not found
+     */
     public Object getAttribute(String attributeName) {
         return attributes.get(attributeName);
     }
 
+    /**
+     * Get an attribute value from the annotation.
+     *
+     * @param attributeName the attribute name
+     * @param type the attribute type
+     * @return the attribute value or {@code null} if not found
+     * @throws IllegalArgumentException if the value cannot be converted/cast to the target type
+     */
     @SuppressWarnings("unchecked")
     public <T> T getAttribute(String attributeName, Class<T> type) {
         Object result = getAttribute(attributeName);
@@ -141,6 +171,15 @@ public class AnnotationAttributes {
         return (T) result;
     }
 
+    /**
+     * Get a required attribute value from the annotation.
+     *
+     * @param attributeName the attribute name
+     * @param type the attribute type
+     * @return the attribute value
+     * @throws NullPointerException if the {@code attributeName} is {@code null}
+     * @throws IllegalArgumentException if the {@code attributeName} is blank or attribute does not exist
+     */
     public <T> T getRequiredAttribute(String attributeName, Class<T> type) {
         Validate.notBlank(attributeName, "attributeName must not be null or blank");
         T result = getAttribute(attributeName, type);
@@ -151,6 +190,9 @@ public class AnnotationAttributes {
         return result;
     }
 
+    /**
+     * Returns an unmodifiable view of the attributes map.
+     */
     public Map<String, Object> asImmutableMap() {
         return Collections.unmodifiableMap(attributes);
     }

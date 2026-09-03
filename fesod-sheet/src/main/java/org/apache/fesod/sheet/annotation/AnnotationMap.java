@@ -44,18 +44,33 @@ public class AnnotationMap {
         this.annotations = annotations;
     }
 
+    /**
+     * Check if the annotations map is empty.
+     */
     public boolean isEmpty() {
         return MapUtils.isEmpty(annotations);
     }
 
+    /**
+     * Returns the number of annotations.
+     */
     public int size() {
         return annotations.size();
     }
 
+    /**
+     * Returns whether the specified annotation type is present.
+     */
     public boolean hasAnnotation(Class<? extends Annotation> annotationType) {
         return !isEmpty() && annotations.containsKey(annotationType);
     }
 
+    /**
+     * Get the {@link AnnotationAttributes} for the specified annotation type.
+     *
+     * @param annotationType the annotation type
+     * @return the {@link AnnotationAttributes} or {@code null} if not found
+     */
     public AnnotationAttributes getAttributes(Class<? extends Annotation> annotationType) {
         if (isEmpty()) {
             return null;
@@ -63,6 +78,12 @@ public class AnnotationMap {
         return annotations.get(annotationType);
     }
 
+    /**
+     * Create a synthesized annotation proxy of the specified annotation type.
+     *
+     * @param annotationType the annotation type
+     * @return the synthesized annotation proxy, or {@code null} if annotation is not present
+     */
     @SuppressWarnings("unchecked")
     public <T extends Annotation> T synthesize(Class<T> annotationType) {
         AnnotationAttributes attributes = getAttributes(annotationType);
