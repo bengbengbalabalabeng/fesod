@@ -22,7 +22,7 @@ title: 'Annotation'
 
 # Annotation
 
-This section describes how to read annotations provided in the project.
+This section provides an overview of the core annotations available in FesodSheet, including their configuration options, usage, and support for composed meta-annotations.
 
 ## Entity Class Annotations
 
@@ -157,3 +157,194 @@ Define a freeze pane for an Excel sheet. The parameters are as follows:
 | rowSplit       | 0             | Vertical position of freeze pane.                                        |
 | leftmostColumn | -1            | Left column visible in right pane. By default, it's equal to `colSplit`. |
 | topRow         | -1            | Top row visible in bottom pane. By default, it's equal to `rowSplit`.    |
+
+---
+
+## Composing Annotation Configurations
+
+To improve configuration reusability and semantic clarity, FesodSheet introduces a meta-annotation mechanism: simply annotate a custom annotation with `@FesodMarked` to package multiple annotations¹ into a single, reusable business annotation.
+
+> Annotation¹: Includes FesodSheet's built-in annotations (except `@ExcelIgnore` and `@ExcelIgnoreUnannotated`), as well as third-party annotations (retrievable only via `AnnotatedElementUtils` APIs; they do not participate in FesodSheet's internal read/write operations).
+
+### Definition Patterns
+
+**1. Preset Template Pattern**
+
+Best suited for fixed configurations that do not require dynamic parameter passing.
+
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+// highlight-start
+@FesodMarked
+@ColumnWidth(25)
+@NumberFormat("#,##0.00")
+@ContentFontStyle(bold = BooleanEnum.TRUE)
+// highlight-end
+public @interface AmountColumn {
+}
+```
+
+**2. Alias Mapping Pattern**
+
+When a custom annotation needs to accept parameters dynamically and forward/override them to target annotations, use `@FesodMarked.AliasFor` to establish attribute mappings.
+
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+// highlight-start
+@FesodMarked
+@ExcelProperty
+@ColumnWidth
+// highlight-end
+public @interface CustomHeader {
+    
+    // highlight-next-line
+    @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
+    String title() default "";
+
+    // highlight-next-line
+    @FesodMarked.AliasFor(annotation = ExcelProperty.class)
+    int index() default -1;
+    
+    // highlight-next-line
+    @FesodMarked.AliasFor(annotation = ColumnWidth.class, attribute = "value")
+    int width() default 20;
+}
+```
+
+> Type Adaptation: If the target annotation attribute expects an array type (e.g., `ExcelProperty#value()` expects `String[]`), declaring a single scalar type (e.g., `String`) in your custom annotation will be automatically wrapped into a one-dimensional array by FesodSheet at runtime.
+
+**Alias Constraints:**
+
+- The target annotation of an alias must be declared on the composed annotation (e.g., `@ExcelProperty` and `@ColumnWidth` in the example above); otherwise, an `IllegalStateException` will be thrown during scanning.
+- The `attribute` must be an existing attribute on the target annotation with a matching type (or eligible for scalar-to-array adaptation).
+- When `attribute` is omitted, it defaults to **same-name mapping** (e.g., `index()` maps to `ExcelProperty#index()`).
+- Composed annotations can be composed within other composed annotations (nested composition) and are merged hierarchically based on declaration levels. _(NOT RECOMMENDED)_
+
+### Precedence and Override Rules
+
+When multiple annotation layers or duplicate attributes coexist on an entity field, FesodSheet resolves conflicts at the **attribute level** following this precedence order:
+
+```text
+[Direct target annotation on field] > [Parameter passed via @FesodMarked.AliasFor (explicit value or default)] > [Static preset inside composed annotation]
+```
+
+:::warning
+Alias overriding with `@FesodMarked.AliasFor` is **unconditional**: even if an alias attribute is not explicitly assigned at the usage site (remaining at its default value), its default value will still override any static presets defined inside the composed annotation.
+
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@FesodMarked
+@ExcelProperty(value = {"Preset NAME"})
+public @interface CustomHeader {
+
+    @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
+    String title() default "Aliased NAME";
+}
+```
+
+```java
+// Header will be {"Aliased NAME"} instead of the preset {"Preset NAME"}
+@CustomHeader
+private String name;
+```
+
+Therefore, in practice, alias attributes should either: Have no default value (forcing explicit assignment at the usage site), or use a default value identical to the preset value.
+:::
+
+#### Direct Target Annotation on Field
+
+```java
+// Header is {"NAME"}
+@ExcelProperty(value = {"NAME"})
+private String name;
+```
+
+#### Parameter passed via `@FesodMarked.AliasFor` (Explicit Value or Default)
+
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@FesodMarked
+@ExcelProperty
+public @interface CustomHeader {
+
+    @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
+    String title();
+}
+```
+
+```java
+// Header is {"Aliased NAME"}
+@CustomHeader(title = "Aliased NAME")
+private String name;
+```
+
+> In the example above, `title()` has no default value, enforcing explicit parameter passing at the usage site and naturally preventing default values from unintentionally overriding static presets.
+
+#### Static Preset Inside Composed Annotation
+
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@FesodMarked
+@ExcelProperty(value = {"Preset NAME"})
+public @interface CustomHeader {
+}
+```
+
+```java
+// Header is {"Preset NAME"}
+@CustomHeader
+private String name;
+```
+
+#### Mixing on the Same Field: Direct Annotation + Composed Annotation _(NOT RECOMMENDED)_
+
+Precedence resolution does not shadow the entire annotation; instead, attributes are merged attribute-by-attribute:
+
+- Attributes **explicitly assigned** in higher-precedence annotations remain unchanged;
+- Attributes **not explicitly assigned** are filled by lower-precedence sources. Both **aliased values** (whether explicit or default) and static presets (requiring explicit definition) from composed annotations participate in the fallback population.
+
+**Static Presets**
+
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@FesodMarked
+@ExcelProperty(value = "Preset NAME", index = 0)
+public @interface CustomHeader {
+}
+```
+
+```java
+// The explicitly assigned 'index' takes effect; the unassigned 'value' is populated by the preset from the composed annotation.
+// Result: index = 2, value = {"Preset NAME"}
+@ExcelProperty(index = 2)
+@CustomHeader
+private String name;
+```
+
+**Aliased Values (Explicit or Default)**
+
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@FesodMarked
+@ExcelProperty
+public @interface CustomHeader {
+
+    @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
+    String title() default "Aliased NAME";
+}
+```
+
+```java
+// The explicitly assigned 'index' takes effect; the unassigned 'value' is populated by the alias value from the composed annotation.
+// Result: index = 2, value = {"Aliased NAME"}
+@ExcelProperty(index = 2)
+@CustomHeader
+private String name;
+```
