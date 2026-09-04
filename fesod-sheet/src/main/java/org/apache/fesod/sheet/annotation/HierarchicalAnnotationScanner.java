@@ -104,13 +104,12 @@ abstract class HierarchicalAnnotationScanner {
      * <p>
      * The judgment logic for distance is as follows:
      * <ul>
-     *   <li><b>marked distance == target distance</b>:
-     *       Both are at the same level (for example, peer declarations are made on the same target). In this case,
-     *       there is no hierarchical override relationship between them.</li>
-     *   <li><b>marked distance < target distance</b>:
-     *       The annotation that declares an alias (marked) is closer to the target (i.e., at the child annotation level) and
-     *       has higher priority. In this case, the attribute values in the child annotation (marked) will override/sync to
-     *       the corresponding attributes in the target meta-annotation (target).</li>
+     *   <li><b>target distance &ge; marked distance + 1</b>: the target's closest occurrence is the marked
+     *       annotation's own meta-declaration (or deeper), so the alias value applies unconditionally,
+     *       whether explicitly set or at its default.</li>
+     *   <li><b>target distance &lt; marked distance + 1</b>: the target is also annotated closer to the
+     *       element (for example directly on the field). The alias only fills attributes that the closer
+     *       target usage left at default; explicitly set attributes keep their value.</li>
      * </ul>
      *
      * @param annotationMap A collection of annotation attributes
@@ -128,7 +127,7 @@ abstract class HierarchicalAnnotationScanner {
             if (marked == null || target == null) {
                 continue;
             }
-            if ((marked.getDistance() + 1) <= target.getDistance()) {
+            if ((marked.getDistance() + 1) <= target.getDistance() || target.isDefaultValue(alias.getAttribute())) {
                 target.put(alias.getAttribute(), marked.getAttribute(alias.getCustomAttribute()));
                 target.markAsNonDefault(alias.getAttribute());
             }

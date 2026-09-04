@@ -135,6 +135,19 @@ class AnnotatedElementUtilsTest {
         String column() default "x";
     }
 
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @FesodMarked
+    @ExcelProperty
+    @interface SuppressedAliasProperty {
+
+        @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
+        String head() default "Preset";
+
+        @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "index")
+        int column() default 42;
+    }
+
     @MetaProperty
     private String composedOnly;
 
@@ -169,6 +182,10 @@ class AnnotatedElementUtilsTest {
 
     @BadTypeAliasProperty
     private String badTypeAlias;
+
+    @ExcelProperty(index = 5)
+    @SuppressedAliasProperty
+    private String suppressedAlias;
 
     @ExcelProperty(index = 2, value = "proxy")
     private String proxySource;
@@ -227,6 +244,16 @@ class AnnotatedElementUtilsTest {
     void shouldApplyExplicitAliasOverride() throws Exception {
         ExcelProperty merged = AnnotatedElementUtils.getMergedAnnotation(field("aliasedExplicit"), ExcelProperty.class);
         Assertions.assertEquals(9, merged.index());
+    }
+
+    @Test
+    void shouldApplyAliasOnlyToDefaultedAttributesOfDirectlyAnnotatedTarget() throws Exception {
+        ExcelProperty merged = AnnotatedElementUtils.getMergedAnnotation(field("suppressedAlias"), ExcelProperty.class);
+
+        // the direct usage's explicit index wins over the aliased column=42, while its defaulted
+        // value is filled by the aliased head="Preset" — aliases merge per attribute
+        Assertions.assertEquals(5, merged.index());
+        Assertions.assertArrayEquals(new String[] {"Preset"}, merged.value());
     }
 
     @Test
