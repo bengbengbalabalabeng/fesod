@@ -20,6 +20,8 @@
 package org.apache.fesod.sheet.annotation;
 
 import java.util.List;
+import java.util.Objects;
+import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -27,22 +29,43 @@ import lombok.Getter;
  * A wrapper class for resolved annotation instance.
  */
 @EqualsAndHashCode
-@Getter
+@Getter(AccessLevel.PACKAGE)
 class AnnotationMetadata {
 
     private final AnnotationAttributes attributes;
     private final List<AliasFor> aliases;
 
-    public AnnotationMetadata(AnnotationAttributes attributes, List<AliasFor> aliases) {
+    AnnotationMetadata(AnnotationAttributes attributes, List<AliasFor> aliases) {
         this.attributes = attributes;
         this.aliases = aliases;
     }
 
-    public void addTo(List<AliasFor> aliases) {
-        aliases.addAll(this.aliases);
+    void setDistance(int distance) {
+        attributes.setDistance(distance);
     }
 
-    public void setDistance(int distance) {
-        attributes.setDistance(distance);
+    void applyAliasFor(AliasFor aliasFor) {
+        if (!attributes.isAnnotationTypeEqual(aliasFor.getTarget())) {
+            return;
+        }
+
+        attributes.put(aliasFor.getAttribute(), aliasFor.getValue());
+        attributes.markAsNonDefault(aliasFor.getAttribute());
+
+        propagateAliasValue(aliasFor);
+    }
+
+    /**
+     * Propagates the applied alias value to downstream chained aliases.
+     * <p>
+     * If any alias declared on this annotation originates from the parent's target attribute,
+     * its value is updated so that the newly assigned value cascades to the next nesting level.
+     */
+    private void propagateAliasValue(AliasFor parentAliasFor) {
+        for (AliasFor current : aliases) {
+            if (Objects.equals(current.getCustomAttribute(), parentAliasFor.getAttribute())) {
+                current.setValue(parentAliasFor.getValue());
+            }
+        }
     }
 }

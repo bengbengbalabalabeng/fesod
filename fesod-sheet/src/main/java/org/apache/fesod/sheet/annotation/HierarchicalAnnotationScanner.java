@@ -21,8 +21,7 @@ package org.apache.fesod.sheet.annotation;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -47,90 +46,90 @@ abstract class HierarchicalAnnotationScanner {
         }
 
         AnnotationMap.Builder builder = AnnotationMap.builder();
+        Queue<AnnotationNode> queue = new LinkedList<>();
 
-        Queue<Annotation> queue = new LinkedList<>(Arrays.asList(annotations));
-        // Record visited annotation, to avoid circular dependencies (like: @A -> @B, @B -> @A)
-        Set<Class<? extends Annotation>> visited = new HashSet<>();
-        List<AliasFor> aliases = new ArrayList<>();
-        int distance = 0;
-
-        while (!queue.isEmpty()) {
-            int currLevelSize = queue.size();
-
-            for (int i = 0; i < currLevelSize; i++) {
-                Annotation ann = queue.poll();
-                Class<? extends Annotation> type = ann.annotationType();
-
-                if (metadataResolver.shouldIgnore(type)) {
-                    continue;
-                }
-
-                AnnotationMetadata metadata = metadataResolver.resolve(ann);
-                metadata.setDistance(distance);
-
-                // Handle composable-annotations (low-level attribute value)
-                if (metadataResolver.isMetaMarked(ann)) {
-                    metadata.addTo(aliases);
-
-                    if (visited.add(type)) {
-                        for (Annotation metaAnn : type.getAnnotations()) {
-                            if (metadataResolver.shouldIgnore(metaAnn.annotationType())) {
-                                continue;
-                            }
-                            queue.add(metaAnn);
-                        }
-                    }
-                }
-
-                builder.merge(type, metadata.getAttributes());
-            }
-
-            distance++;
+        for (Annotation root : annotations) {
+            queue.add(new AnnotationNode(root, 0, Collections.emptyList()));
         }
 
-        AnnotationMap annotationMap = builder.build();
+        while (!queue.isEmpty()) {
+            AnnotationNode current = queue.poll();
+            Class<? extends Annotation> type = current.annotationType();
 
-        // Handle alias
-        handleAliasesIfNecessary(annotationMap, aliases);
+            if (metadataResolver.shouldIgnore(type)) {
+                continue;
+            }
 
-        return annotationMap;
+            AnnotationMetadata metadata = metadataResolver.resolve(current.annotation);
+            metadata.setDistance(current.distance);
+
+            // Apply aliases
+            applyAliasesIfNecessary(metadata, current.aliases);
+
+            // Handle composable-annotations (low-level attribute value)
+            if (metadataResolver.isMetaMarked(current.annotation)) {
+                for (Annotation metaAnn : type.getAnnotations()) {
+                    if (metadataResolver.shouldIgnore(metaAnn.annotationType())
+                            || current.isVisited(metaAnn.annotationType())) {
+                        continue;
+                    }
+                    queue.add(current.next(metaAnn, metadata.getAliases()));
+                }
+            }
+
+            builder.merge(type, metadata.getAttributes());
+        }
+
+        return builder.build();
     }
 
     /**
-     * Handle the mapping and overriding logic of annotation attribute aliases (AliasFor).
-     * <p>
-     * Attribute Override Policy: Annotations closer to the annotated target (with a smaller distance) have higher attribute priority
-     * and can override the properties aliased in their meta-annotations (with a larger distance).
-     * <p>
-     * The judgment logic for distance is as follows:
-     * <ul>
-     *   <li><b>target distance &ge; marked distance + 1</b>: the target's closest occurrence is the marked
-     *       annotation's own meta-declaration (or deeper), so the alias value applies unconditionally,
-     *       whether explicitly set or at its default.</li>
-     *   <li><b>target distance &lt; marked distance + 1</b>: the target is also annotated closer to the
-     *       element (for example directly on the field). The alias only fills attributes that the closer
-     *       target usage left at default; explicitly set attributes keep their value.</li>
-     * </ul>
+     * Apply alias mapping rules ({@link AliasFor}) to the target annotation metadata.
      *
-     * @param annotationMap A collection of annotation attributes
-     * @param aliases       Alias mapping list
+     * @param metadata the target annotation metadata
+     * @param aliases the aliases inherited from the declaring annotation
      */
-    private void handleAliasesIfNecessary(AnnotationMap annotationMap, List<AliasFor> aliases) {
+    private void applyAliasesIfNecessary(AnnotationMetadata metadata, List<AliasFor> aliases) {
         if (CollectionUtils.isEmpty(aliases)) {
             return;
         }
 
-        for (AliasFor alias : aliases) {
-            AnnotationAttributes marked = annotationMap.getAttributes(alias.getMarked());
-            AnnotationAttributes target = annotationMap.getAttributes(alias.getTarget());
+        for (AliasFor aliasFor : aliases) {
+            metadata.applyAliasFor(aliasFor);
+        }
+    }
 
-            if (marked == null || target == null) {
-                continue;
-            }
-            if ((marked.getDistance() + 1) <= target.getDistance() || target.isDefaultValue(alias.getAttribute())) {
-                target.put(alias.getAttribute(), marked.getAttribute(alias.getCustomAttribute()));
-                target.markAsNonDefault(alias.getAttribute());
-            }
+    private static class AnnotationNode {
+        final Annotation annotation;
+        final int distance;
+        final List<AliasFor> aliases;
+        // Record visited annotation, to avoid circular dependencies (like: @A -> @B, @B -> @A)
+        final Set<Class<? extends Annotation>> path;
+
+        AnnotationNode(
+                Annotation annotation, int distance, List<AliasFor> aliases, Set<Class<? extends Annotation>> path) {
+            this.annotation = annotation;
+            this.distance = distance;
+            this.aliases = aliases;
+            this.path = path;
+        }
+
+        AnnotationNode(Annotation annotation, int distance, List<AliasFor> aliases) {
+            this(annotation, distance, aliases, new HashSet<>());
+        }
+
+        Class<? extends Annotation> annotationType() {
+            return annotation.annotationType();
+        }
+
+        boolean isVisited(Class<? extends Annotation> type) {
+            return path.contains(type);
+        }
+
+        AnnotationNode next(Annotation annotation, List<AliasFor> aliases) {
+            Set<Class<? extends Annotation>> fullPath = new HashSet<>(path);
+            fullPath.add(annotationType());
+            return new AnnotationNode(annotation, distance + 1, aliases, fullPath);
         }
     }
 }

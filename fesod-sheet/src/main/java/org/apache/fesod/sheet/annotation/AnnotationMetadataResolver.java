@@ -120,7 +120,8 @@ class AnnotationMetadataResolver {
                             StringUtils.isNotBlank(aliasFor.attribute()) ? aliasFor.attribute() : attrName;
                     targetAttrMethods.validateAliasFor(method, targetAttrName);
 
-                    aliases.add(new AliasFor(ann.annotationType(), aliasFor.annotation(), attrName, targetAttrName));
+                    aliases.add(new AliasFor(
+                            ann.annotationType(), aliasFor.annotation(), attrName, targetAttrName, result));
                 }
                 attr.put(attrName, result);
             } catch (IllegalAccessException | InvocationTargetException ex) {

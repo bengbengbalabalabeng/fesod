@@ -20,14 +20,16 @@
 package org.apache.fesod.sheet.annotation;
 
 import java.lang.annotation.Annotation;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * A value object representing a declarative attribute aliasing instruction.
  */
 @AllArgsConstructor
-@Getter
+@Getter(AccessLevel.PACKAGE)
 class AliasFor {
 
     /**
@@ -49,4 +51,10 @@ class AliasFor {
      * The name of the attribute in the target annotation to be overridden.
      */
     private final String attribute;
+
+    /**
+     * The value of the attribute in the target annotation to be overridden.
+     */
+    @Setter(AccessLevel.PACKAGE)
+    private Object value;
 }

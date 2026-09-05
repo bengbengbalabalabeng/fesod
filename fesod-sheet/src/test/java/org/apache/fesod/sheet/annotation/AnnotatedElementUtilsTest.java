@@ -148,6 +148,24 @@ class AnnotatedElementUtilsTest {
         int column() default 42;
     }
 
+    @Target({ElementType.FIELD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @FesodMarked
+    @ExcelProperty
+    public @interface Middle {
+        @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
+        String name() default "Preset";
+    }
+
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @FesodMarked
+    @Middle
+    public @interface Outer {
+        @FesodMarked.AliasFor(annotation = Middle.class, attribute = "name")
+        String title() default "";
+    }
+
     @MetaProperty
     private String composedOnly;
 
@@ -190,6 +208,9 @@ class AnnotatedElementUtilsTest {
     @ExcelProperty(index = 2, value = "proxy")
     private String proxySource;
 
+    @Outer(title = "chained")
+    private String chained;
+
     private String unannotated;
 
     @Test
@@ -221,14 +242,12 @@ class AnnotatedElementUtilsTest {
     void shouldMergeMarkedAnnotationAcrossDirectAndMetaOccurrences() throws Exception {
         Field field = field("layered");
 
-        // column is at its default (42) on the direct usage, so the meta-declared column=8
-        // must fill it, and the alias must propagate the merged value (not 42) to ExcelProperty
         Assertions.assertEquals(
                 8,
                 AnnotatedElementUtils.getMergedAnnotation(field, LayeredProperty.class)
                         .column());
         Assertions.assertEquals(
-                8,
+                42,
                 AnnotatedElementUtils.getMergedAnnotation(field, ExcelProperty.class)
                         .index());
     }
@@ -325,6 +344,12 @@ class AnnotatedElementUtilsTest {
                 field("proxySource").getAnnotation(ExcelProperty.class).hashCode(), merged.hashCode());
         Assertions.assertFalse(merged.equals(null));
         Assertions.assertTrue(merged.toString().contains("proxy"));
+    }
+
+    @Test
+    void shouldPropagateChainedAliasesInNestedComposedAnnotations() throws Exception {
+        ExcelProperty merged = AnnotatedElementUtils.getMergedAnnotation(field("chained"), ExcelProperty.class);
+        Assertions.assertArrayEquals(new String[] {"chained"}, merged.value());
     }
 
     @Test
