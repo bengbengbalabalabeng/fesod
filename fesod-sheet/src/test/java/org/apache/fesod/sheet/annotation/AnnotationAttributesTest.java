@@ -19,11 +19,8 @@
 
 package org.apache.fesod.sheet.annotation;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import org.apache.fesod.sheet.testkit.Tags;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Tag;
@@ -39,22 +36,17 @@ class AnnotationAttributesTest {
     void shouldIsolateFromCallerOwnedMaps() {
         Map<String, Object> attrs = new LinkedHashMap<>();
         attrs.put("index", 2);
-        Set<String> defaults = new HashSet<>(Collections.singleton("order"));
 
-        AnnotationAttributes attributes = new AnnotationAttributes(ExcelProperty.class, attrs, defaults);
+        AnnotationAttributes attributes = new AnnotationAttributes(ExcelProperty.class, attrs);
         attrs.put("index", 99);
-        defaults.add("value");
 
         Assertions.assertEquals(Integer.valueOf(2), attributes.getRequiredAttribute("index", Integer.class));
-        Assertions.assertFalse(attributes.isDefaultValue("value"));
     }
 
     @Test
-    void shouldIgnoreDistanceAndDefaultTrackingInEquality() {
+    void shouldEqualByAnnotationTypeAndAttributeValues() {
         AnnotationAttributes near = newAnnotationAttributes(2);
         AnnotationAttributes far = newAnnotationAttributes(2);
-        far.setDistance(3);
-        far.markAsNonDefault("index");
 
         Assertions.assertEquals(near, far);
         Assertions.assertEquals(near.hashCode(), far.hashCode());
@@ -83,6 +75,6 @@ class AnnotationAttributesTest {
     private AnnotationAttributes newAnnotationAttributes(int index) {
         Map<String, Object> attrs = new LinkedHashMap<>();
         attrs.put("index", index);
-        return new AnnotationAttributes(ExcelProperty.class, attrs, Collections.singleton("index"));
+        return new AnnotationAttributes(ExcelProperty.class, attrs);
     }
 }

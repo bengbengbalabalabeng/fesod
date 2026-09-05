@@ -148,6 +148,19 @@ class AnnotatedElementUtilsTest {
         int column() default 42;
     }
 
+    /** Two composed annotations declaring the same target type with different presets. */
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @FesodMarked
+    @ExcelProperty(index = 1, value = "first-declared")
+    @interface FirstDeclaredProperty {}
+
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @FesodMarked
+    @ExcelProperty(index = 2, value = "second-declared")
+    @interface SecondDeclaredProperty {}
+
     @Target({ElementType.FIELD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
     @FesodMarked
@@ -169,8 +182,8 @@ class AnnotatedElementUtilsTest {
     @MetaProperty
     private String composedOnly;
 
-    @ExcelProperty(index = 5)
     @MetaProperty
+    @ExcelProperty(index = 5)
     private String directAndComposed;
 
     @LayeredProperty
@@ -205,6 +218,10 @@ class AnnotatedElementUtilsTest {
     @SuppressedAliasProperty
     private String suppressedAlias;
 
+    @FirstDeclaredProperty
+    @SecondDeclaredProperty
+    private String duplicateTarget;
+
     @ExcelProperty(index = 2, value = "proxy")
     private String proxySource;
 
@@ -224,13 +241,12 @@ class AnnotatedElementUtilsTest {
     }
 
     @Test
-    void shouldPreferDirectExplicitAttributesOverMetaDeclaredOnes() throws Exception {
+    void shouldPreferDirectAnnotationOverComposedDeclaration() throws Exception {
         Field field = field("directAndComposed");
 
         ExcelProperty merged = AnnotatedElementUtils.getMergedAnnotation(field, ExcelProperty.class);
         Assertions.assertEquals(5, merged.index());
-        // attributes left at default on the direct usage are still filled by the meta-declaration
-        Assertions.assertArrayEquals(new String[] {"meta-head"}, merged.value());
+        Assertions.assertArrayEquals(new String[] {""}, merged.value());
 
         AnnotationAttributes attributes =
                 AnnotatedElementUtils.getMergedAnnotationAttributes(field, ExcelProperty.class);
@@ -239,11 +255,11 @@ class AnnotatedElementUtilsTest {
     }
 
     @Test
-    void shouldMergeMarkedAnnotationAcrossDirectAndMetaOccurrences() throws Exception {
+    void shouldPreferDirectMarkedOccurrenceOverComposedPreset() throws Exception {
         Field field = field("layered");
 
         Assertions.assertEquals(
-                8,
+                42,
                 AnnotatedElementUtils.getMergedAnnotation(field, LayeredProperty.class)
                         .column());
         Assertions.assertEquals(
@@ -266,13 +282,26 @@ class AnnotatedElementUtilsTest {
     }
 
     @Test
-    void shouldApplyAliasOnlyToDefaultedAttributesOfDirectlyAnnotatedTarget() throws Exception {
-        ExcelProperty merged = AnnotatedElementUtils.getMergedAnnotation(field("suppressedAlias"), ExcelProperty.class);
+    void shouldIgnoreComposedAliasesWhenTargetDirectlyAnnotated() throws Exception {
+        Field field = field("suppressedAlias");
 
-        // the direct usage's explicit index wins over the aliased column=42, while its defaulted
-        // value is filled by the aliased head="Preset" — aliases merge per attribute
+        ExcelProperty merged = AnnotatedElementUtils.getMergedAnnotation(field, ExcelProperty.class);
         Assertions.assertEquals(5, merged.index());
-        Assertions.assertArrayEquals(new String[] {"Preset"}, merged.value());
+        Assertions.assertArrayEquals(new String[] {""}, merged.value());
+
+        SuppressedAliasProperty customAnnotation =
+                AnnotatedElementUtils.getMergedAnnotation(field, SuppressedAliasProperty.class);
+        Assertions.assertEquals(42, customAnnotation.column());
+        Assertions.assertEquals("Preset", customAnnotation.head());
+    }
+
+    @Test
+    void shouldKeepFirstDeclaredOccurrenceForDuplicateTargetType() throws Exception {
+        ExcelProperty merged = AnnotatedElementUtils.getMergedAnnotation(field("duplicateTarget"), ExcelProperty.class);
+
+        // first-occurrence-wins: the later composed declaration of the same target type is discarded wholesale
+        Assertions.assertEquals(1, merged.index());
+        Assertions.assertArrayEquals(new String[] {"first-declared"}, merged.value());
     }
 
     @Test

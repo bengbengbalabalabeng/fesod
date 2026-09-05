@@ -22,16 +22,11 @@ package org.apache.fesod.sheet.annotation;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.Setter;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.Validate;
 
@@ -61,67 +56,14 @@ public class AnnotationAttributes {
     @EqualsAndHashCode.Include
     private final Map<String, Object> attributes;
 
-    /**
-     * Attribute names whose values match their declared defaults.
-     */
-    private final Set<String> defaultValueAttrNames;
-
-    /**
-     * The distance of this annotation from the root annotated element.
-     * <p> A value of {@code 0} indicates that the annotation is directly declared on the element.
-     */
-    @Getter(AccessLevel.PACKAGE)
-    @Setter(AccessLevel.PACKAGE)
-    private int distance;
-
-    AnnotationAttributes(
-            Class<? extends Annotation> annotationType, Map<String, Object> attrs, Set<String> defaultValueAttrNames) {
+    AnnotationAttributes(Class<? extends Annotation> annotationType, Map<String, Object> attrs) {
         this.annotationType = annotationType;
         this.annotationName = annotationType.getName();
         this.attributes = new LinkedHashMap<>(attrs);
-        this.defaultValueAttrNames = new HashSet<>(defaultValueAttrNames);
-        this.distance = 0;
     }
 
     public boolean isAnnotationTypeEqual(Class<? extends Annotation> annotationType) {
         return this.annotationType.equals(annotationType);
-    }
-
-    boolean isDefaultValue(String attributeName) {
-        return defaultValueAttrNames.contains(attributeName);
-    }
-
-    void markAsNonDefault(String attributeName) {
-        if (CollectionUtils.isNotEmpty(defaultValueAttrNames)) {
-            defaultValueAttrNames.remove(attributeName);
-        }
-    }
-
-    void merge(AnnotationAttributes other) {
-        if (other == null) {
-            return;
-        }
-
-        if (distance < other.getDistance()) {
-            for (Map.Entry<String, Object> entry : other.attributes.entrySet()) {
-                String attrName = entry.getKey();
-
-                if (isDefaultValue(attrName) && !other.isDefaultValue(attrName)) {
-                    put(attrName, entry.getValue());
-                    markAsNonDefault(attrName);
-                }
-            }
-        } else if (distance > other.getDistance()) {
-            distance = other.getDistance();
-            for (Map.Entry<String, Object> entry : other.attributes.entrySet()) {
-                String attrName = entry.getKey();
-
-                if (!other.isDefaultValue(attrName)) {
-                    put(attrName, entry.getValue());
-                    markAsNonDefault(attrName);
-                }
-            }
-        }
     }
 
     void put(String attrName, Object value) {

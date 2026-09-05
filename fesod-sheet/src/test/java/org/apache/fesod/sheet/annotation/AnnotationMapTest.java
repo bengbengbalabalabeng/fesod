@@ -19,10 +19,8 @@
 
 package org.apache.fesod.sheet.annotation;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import org.apache.fesod.sheet.testkit.Tags;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Tag;
@@ -44,30 +42,23 @@ class AnnotationMapTest {
     }
 
     @Test
-    void shouldMergeDuplicateTypeEntriesAcrossDistances() {
-        AnnotationAttributes near = attributes(2, new String[] {"near"}, Collections.singleton("value"));
-        near.setDistance(0);
-        AnnotationAttributes far = attributes(3, new String[] {"meta-head"}, Collections.emptySet());
-        far.setDistance(1);
-
+    void shouldKeepFirstOccurrenceForDuplicateTypes() {
         AnnotationMap map = AnnotationMap.builder()
-                .merge(ExcelProperty.class, near)
-                .merge(ExcelProperty.class, far)
+                .putIfAbsent(ExcelProperty.class, attributes(1, "first"))
+                .putIfAbsent(ExcelProperty.class, attributes(2, "second"))
                 .build();
 
+        // duplicate types are first-occurrence-wins: the second declaration is discarded wholesale
         AnnotationAttributes merged = map.getAttributes(ExcelProperty.class);
         Assertions.assertNotNull(merged);
-        // the closer entry's explicit value wins, and its defaulted attribute is
-        // filled by the farther declaration
-        Assertions.assertEquals(2, merged.getRequiredAttribute("index", Integer.class));
-        Assertions.assertArrayEquals(new String[] {"meta-head"}, merged.getRequiredAttribute("value", String[].class));
-        Assertions.assertNotNull(map.synthesize(ExcelProperty.class));
+        Assertions.assertEquals(Integer.valueOf(1), merged.getRequiredAttribute("index", Integer.class));
+        Assertions.assertArrayEquals(new String[] {"first"}, merged.getRequiredAttribute("value", String[].class));
     }
 
-    private AnnotationAttributes attributes(int index, String[] value, Set<String> defaults) {
+    private AnnotationAttributes attributes(int index, String value) {
         Map<String, Object> attrs = new LinkedHashMap<>();
         attrs.put("index", index);
-        attrs.put("value", value);
-        return new AnnotationAttributes(ExcelProperty.class, attrs, defaults);
+        attrs.put("value", new String[] {value});
+        return new AnnotationAttributes(ExcelProperty.class, attrs);
     }
 }

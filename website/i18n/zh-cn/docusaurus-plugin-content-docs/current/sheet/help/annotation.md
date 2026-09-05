@@ -214,15 +214,14 @@ public @interface CustomHeader {
 - 别名的目标注解必须声明在组合注解上（如上例中的 `@ExcelProperty`、`@ColumnWidth`），否则扫描时抛出 `IllegalStateException`；
 - `attribute` 必须是目标注解真实存在的属性，且类型一致（或为"标量对应目标数组分量类型"的适配场景）；
 - `attribute` 留空时按**同名映射**处理（如上例 `index()` 即别名 `ExcelProperty#index()`）；
-- 组合注解可以再组合其他组合注解（嵌套组合），按声明层级逐级合并。_（不推荐）_
+- _组合注解可以再组合其他组合注解（嵌套组合）。同一注解类型被重复声明时，以最先声明的一次为准，其余整体忽略。（不推荐）_
 
 ### 优先级与覆盖规则
 
-当实体类字段上同时存在多层注解或同名属性时，FesodSheet 按**属性粒度**遵循以下优先级：
+当实体类字段上同时存在多层注解或同名属性时，FesodSheet 遵循以下解析原则：
 
-```text
-字段直接标注目标注解 > 组合注解通过 @FesodMarked.AliasFor（显式赋值或默认值）传参 > 组合注解内部静态预设值
-```
+- **注解级别：** 直接标注目标注解 **>** 标注组合注解。直接标注的目标注解整体胜出，组合注解内部对应的目标注解会被整体忽略。
+- **组合注解属性级别：** 在生效的组合注解内部，`@FesodMarked.AliasFor` 赋值（含默认值） **>** 静态预设值。
 
 :::warning
 `@FesodMarked.AliasFor` 的别名覆盖是**无条件**的：即使别名属性未显式赋值（处于默认值），其默认值也会覆盖组合注解内部的静态预设值。
@@ -256,7 +255,7 @@ private String name;
 private String name;
 ```
 
-#### 组合注解通过 `@FesodMarked.AliasFor`（显式赋值或默认值）传参
+#### 字段标注组合注解（通过 `@FesodMarked.AliasFor` 显式赋值或默认值传递）
 
 ```java
 @Target(ElementType.FIELD)
@@ -278,7 +277,7 @@ private String name;
 
 > 上例中 `title()` 未声明默认值，可强制使用处显式传参，天然规避别名默认值覆盖静态预设值的问题。
 
-#### 组合注解内部静态预设值
+#### 字段标注组合注解（通过内部静态预设值传递）
 
 ```java
 @Target(ElementType.FIELD)
@@ -297,48 +296,23 @@ private String name;
 
 #### 同字段混用：直接标注 + 组合注解 _（不推荐）_
 
-优先级并非整注解遮蔽，而是逐属性合并：
-
-- 高优先级注解中**已显式赋值**的属性保持不变；
-- **未显式赋值**的属性由低优先级取值补齐，组合注解的**别名值**（无论显式赋值还是默认值）与**静态预设**（需显式赋值）均参与补齐。
-
-**静态预设**
+字段直接标注目标注解时，**直接标注整体获胜**：组合注解对该注解的所有声明（静态预设、别名取值）均不再参与，包括直接标注中未显式赋值的属性，也不会被组合注解的取值补齐。
 
 ```java
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 @FesodMarked
-@ExcelProperty(value = "Preset NAME", index = 0)
+@ExcelProperty(value = {"Preset NAME"}, index = 0)
 public @interface CustomHeader {
 }
 ```
 
 ```java
-// index 字段显式赋值直接生效；未显式赋值的 value 被组合注解的预设补齐
-// 结果：index = 2，value = {"Preset NAME"}
+// 直接标注整体生效：index 采用字段显式赋值的 2；未显式赋值的 value 保持默认；
+// 结果：index = 2，value = {""}
 @ExcelProperty(index = 2)
 @CustomHeader
 private String name;
 ```
 
-**别名值（无论显式赋值还是默认值）**
-
-```java
-@Target(ElementType.FIELD)
-@Retention(RetentionPolicy.RUNTIME)
-@FesodMarked
-@ExcelProperty
-public @interface CustomHeader {
-
-    @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
-    String title() default "Aliased NAME";
-}
-```
-
-```java
-// index 字段显式赋值直接生效；未显式赋值的 value 被组合注解的别名值补齐
-// 结果：index = 2，value = {"Aliased NAME"}
-@ExcelProperty(index = 2)
-@CustomHeader
-private String name;
-```
+> 同理，多个组合注解重复声明同一目标注解时，以**最先声明的一个**为准，其余整体忽略。

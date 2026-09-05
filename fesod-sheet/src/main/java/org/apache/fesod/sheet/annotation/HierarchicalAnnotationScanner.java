@@ -47,9 +47,11 @@ abstract class HierarchicalAnnotationScanner {
 
         AnnotationMap.Builder builder = AnnotationMap.builder();
         Queue<AnnotationNode> queue = new LinkedList<>();
+        Set<Class<? extends Annotation>> rootAnnTypes = new HashSet<>(annotations.length);
 
         for (Annotation root : annotations) {
-            queue.add(new AnnotationNode(root, 0, Collections.emptyList()));
+            rootAnnTypes.add(root.annotationType());
+            queue.add(new AnnotationNode(root, Collections.emptyList()));
         }
 
         while (!queue.isEmpty()) {
@@ -61,7 +63,6 @@ abstract class HierarchicalAnnotationScanner {
             }
 
             AnnotationMetadata metadata = metadataResolver.resolve(current.annotation);
-            metadata.setDistance(current.distance);
 
             // Apply aliases
             applyAliasesIfNecessary(metadata, current.aliases);
@@ -70,6 +71,7 @@ abstract class HierarchicalAnnotationScanner {
             if (metadataResolver.isMetaMarked(current.annotation)) {
                 for (Annotation metaAnn : type.getAnnotations()) {
                     if (metadataResolver.shouldIgnore(metaAnn.annotationType())
+                            || rootAnnTypes.contains(metaAnn.annotationType())
                             || current.isVisited(metaAnn.annotationType())) {
                         continue;
                     }
@@ -77,7 +79,7 @@ abstract class HierarchicalAnnotationScanner {
                 }
             }
 
-            builder.merge(type, metadata.getAttributes());
+            builder.putIfAbsent(type, metadata.getAttributes());
         }
 
         return builder.build();
@@ -101,21 +103,18 @@ abstract class HierarchicalAnnotationScanner {
 
     private static class AnnotationNode {
         final Annotation annotation;
-        final int distance;
         final List<AliasFor> aliases;
         // Record visited annotation, to avoid circular dependencies (like: @A -> @B, @B -> @A)
         final Set<Class<? extends Annotation>> path;
 
-        AnnotationNode(
-                Annotation annotation, int distance, List<AliasFor> aliases, Set<Class<? extends Annotation>> path) {
+        AnnotationNode(Annotation annotation, List<AliasFor> aliases, Set<Class<? extends Annotation>> path) {
             this.annotation = annotation;
-            this.distance = distance;
             this.aliases = aliases;
             this.path = path;
         }
 
-        AnnotationNode(Annotation annotation, int distance, List<AliasFor> aliases) {
-            this(annotation, distance, aliases, new HashSet<>());
+        AnnotationNode(Annotation annotation, List<AliasFor> aliases) {
+            this(annotation, aliases, new HashSet<>());
         }
 
         Class<? extends Annotation> annotationType() {
@@ -129,7 +128,7 @@ abstract class HierarchicalAnnotationScanner {
         AnnotationNode next(Annotation annotation, List<AliasFor> aliases) {
             Set<Class<? extends Annotation>> fullPath = new HashSet<>(path);
             fullPath.add(annotationType());
-            return new AnnotationNode(annotation, distance + 1, aliases, fullPath);
+            return new AnnotationNode(annotation, aliases, fullPath);
         }
     }
 }

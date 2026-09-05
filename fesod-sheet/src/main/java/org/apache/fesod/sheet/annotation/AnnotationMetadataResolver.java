@@ -25,12 +25,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.fesod.common.util.StringUtils;
 
@@ -85,7 +82,6 @@ class AnnotationMetadataResolver {
         }
 
         List<AliasFor> aliases = new ArrayList<>();
-        Set<String> defaultAttrNames = new HashSet<>();
         Map<String, Object> attr = new LinkedHashMap<>();
 
         AttributeMethods attributeMethods = AttributeMethods.from(ann.annotationType());
@@ -93,10 +89,6 @@ class AnnotationMetadataResolver {
             String attrName = method.getName();
             try {
                 Object result = method.invoke(ann);
-                Object defaultValue = method.getDefaultValue();
-                if (defaultValue != null && Objects.deepEquals(result, defaultValue)) {
-                    defaultAttrNames.add(attrName);
-                }
 
                 // Handle @FesodMarked.AliasFor
                 if (isMetaAlias(method)) {
@@ -132,7 +124,7 @@ class AnnotationMetadataResolver {
                         ex);
             }
         }
-        return new AnnotationMetadata(new AnnotationAttributes(ann.annotationType(), attr, defaultAttrNames), aliases);
+        return new AnnotationMetadata(new AnnotationAttributes(ann.annotationType(), attr), aliases);
     }
 
     private boolean isMetaAlias(AnnotatedElement element) {

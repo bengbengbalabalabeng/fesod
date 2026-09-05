@@ -40,18 +40,12 @@ class AnnotationMetadata {
         this.aliases = aliases;
     }
 
-    void setDistance(int distance) {
-        attributes.setDistance(distance);
-    }
-
     void applyAliasFor(AliasFor aliasFor) {
         if (!attributes.isAnnotationTypeEqual(aliasFor.getTarget())) {
             return;
         }
 
         attributes.put(aliasFor.getAttribute(), aliasFor.getValue());
-        attributes.markAsNonDefault(aliasFor.getAttribute());
-
         propagateAliasValue(aliasFor);
     }
 

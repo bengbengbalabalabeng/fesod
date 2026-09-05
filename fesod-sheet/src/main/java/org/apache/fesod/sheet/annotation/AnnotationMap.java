@@ -23,8 +23,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.EqualsAndHashCode;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.Validate;
@@ -103,32 +103,19 @@ public class AnnotationMap {
     static class Builder {
         private final Map<Class<? extends Annotation>, AnnotationAttributes> ann;
 
-        public Builder() {
-            this.ann = new ConcurrentHashMap<>(8);
+        Builder() {
+            this.ann = new LinkedHashMap<>(8);
         }
 
-        public Builder put(Class<? extends Annotation> annotationType, AnnotationAttributes attributes) {
+        Builder putIfAbsent(Class<? extends Annotation> annotationType, AnnotationAttributes attributes) {
             Validate.notNull(annotationType, "annotationType must not be null");
             Validate.notNull(attributes, "attributes must not be null");
 
-            ann.put(annotationType, attributes);
+            ann.putIfAbsent(annotationType, attributes);
             return this;
         }
 
-        public Builder merge(Class<? extends Annotation> annotationType, AnnotationAttributes attributes) {
-            Validate.notNull(annotationType, "annotationType must not be null");
-            Validate.notNull(attributes, "attributes must not be null");
-
-            AnnotationAttributes oldAttrs = ann.get(annotationType);
-            if (oldAttrs == null) {
-                ann.put(annotationType, attributes);
-            } else {
-                oldAttrs.merge(attributes);
-            }
-            return this;
-        }
-
-        public AnnotationMap build() {
+        AnnotationMap build() {
             return new AnnotationMap(ann);
         }
     }

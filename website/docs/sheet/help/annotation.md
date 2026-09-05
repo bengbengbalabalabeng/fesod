@@ -220,15 +220,14 @@ public @interface CustomHeader {
 - The target annotation of an alias must be declared on the composed annotation (e.g., `@ExcelProperty` and `@ColumnWidth` in the example above); otherwise, an `IllegalStateException` will be thrown during scanning.
 - The `attribute` must be an existing attribute on the target annotation with a matching type (or eligible for scalar-to-array adaptation).
 - When `attribute` is omitted, it defaults to **same-name mapping** (e.g., `index()` maps to `ExcelProperty#index()`).
-- Composed annotations can be composed within other composed annotations (nested composition) and are merged hierarchically based on declaration levels. _(NOT RECOMMENDED)_
+- _Composed annotations can further compose other composed annotations (nested composition). When the same annotation type is declared multiple times across nested layers, the first declared instance takes precedence, and the rest are ignored entirely. (NOT RECOMMENDED)_
 
 ### Precedence and Override Rules
 
-When multiple annotation layers or duplicate attributes coexist on an entity field, FesodSheet resolves conflicts at the **attribute level** following this precedence order:
+When multiple layers of annotations or attributes with the same name coexist on an entity class field, FesodSheet follows the parsing principles below:
 
-```text
-[Direct target annotation on field] > [Parameter passed via @FesodMarked.AliasFor (explicit value or default)] > [Static preset inside composed annotation]
-```
+- **Annotation Level:** Directly declared target annotation **>** Composed annotation. The directly declared target annotation wins entirely, and any matching target annotation inside composed annotations is completely ignored.
+- **Composed Annotation Attribute Level:** Within an active composed annotation, `@FesodMarked.AliasFor` values (including defaults) **>** Static preset values.
 
 :::warning
 Alias overriding with `@FesodMarked.AliasFor` is **unconditional**: even if an alias attribute is not explicitly assigned at the usage site (remaining at its default value), its default value will still override any static presets defined inside the composed annotation.
@@ -254,7 +253,7 @@ private String name;
 Therefore, in practice, alias attributes should either: Have no default value (forcing explicit assignment at the usage site), or use a default value identical to the preset value.
 :::
 
-#### Direct Target Annotation on Field
+#### Directly Declared Target Annotation
 
 ```java
 // Header is {"NAME"}
@@ -262,7 +261,7 @@ Therefore, in practice, alias attributes should either: Have no default value (f
 private String name;
 ```
 
-#### Parameter passed via `@FesodMarked.AliasFor` (Explicit Value or Default)
+#### Composed Annotation via @FesodMarked.AliasFor (Explicit or Default Values)
 
 ```java
 @Target(ElementType.FIELD)
@@ -284,7 +283,7 @@ private String name;
 
 > In the example above, `title()` has no default value, enforcing explicit parameter passing at the usage site and naturally preventing default values from unintentionally overriding static presets.
 
-#### Static Preset Inside Composed Annotation
+#### Composed Annotation with Statically Preset Values
 
 ```java
 @Target(ElementType.FIELD)
@@ -301,50 +300,25 @@ public @interface CustomHeader {
 private String name;
 ```
 
-#### Mixing on the Same Field: Direct Annotation + Composed Annotation _(NOT RECOMMENDED)_
+#### Mixed Usage: Direct and Composed Annotations _(NOT RECOMMENDED)_
 
-Precedence resolution does not shadow the entire annotation; instead, attributes are merged attribute-by-attribute:
-
-- Attributes **explicitly assigned** in higher-precedence annotations remain unchanged;
-- Attributes **not explicitly assigned** are filled by lower-precedence sources. Both **aliased values** (whether explicit or default) and static presets (requiring explicit definition) from composed annotations participate in the fallback population.
-
-**Static Presets**
+When a field directly declares the target annotation, the direct declaration wins completely: all declarations on composed annotations (both static presets and alias values) no longer participate. Attributes left unassigned in the direct declaration will not be backfilled by values from the composed annotation.
 
 ```java
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 @FesodMarked
-@ExcelProperty(value = "Preset NAME", index = 0)
+@ExcelProperty(value = {"Preset NAME"}, index = 0)
 public @interface CustomHeader {
 }
 ```
 
 ```java
-// The explicitly assigned 'index' takes effect; the unassigned 'value' is populated by the preset from the composed annotation.
-// Result: index = 2, value = {"Preset NAME"}
+// Direct declaration wins completely: index takes the explicitly assigned 2; value remains at its default value.
+// Result: index = 2, value = {""}
 @ExcelProperty(index = 2)
 @CustomHeader
 private String name;
 ```
 
-**Aliased Values (Explicit or Default)**
-
-```java
-@Target(ElementType.FIELD)
-@Retention(RetentionPolicy.RUNTIME)
-@FesodMarked
-@ExcelProperty
-public @interface CustomHeader {
-
-    @FesodMarked.AliasFor(annotation = ExcelProperty.class, attribute = "value")
-    String title() default "Aliased NAME";
-}
-```
-
-```java
-// The explicitly assigned 'index' takes effect; the unassigned 'value' is populated by the alias value from the composed annotation.
-// Result: index = 2, value = {"Aliased NAME"}
-@ExcelProperty(index = 2)
-@CustomHeader
-private String name;
-```
+> Similarly, when multiple composed annotations declare the same target annotation, the **first declared one takes precedence**, and the others are ignored entirely.
